@@ -14,8 +14,8 @@ st.set_page_config(
 # ---------------------------------------------------------
 # Paths & Cached Asset Loaders
 # ---------------------------------------------------------
-HOTSPOTS_PATH = os.path.join("data", "hotspots_ca_fl_dbscan.parquet")
-MODEL_PATH = os.path.join("models", "lgbm_severity_bundle.joblib")
+HOTSPOTS_PATH = os.path.join("Data", "hotspots_ca_fl_dbscan.parquet")
+MODEL_PATH = os.path.join("Models", "lgbm_severity_bundle.joblib")
 
 @st.cache_data
 def load_hotspots():
