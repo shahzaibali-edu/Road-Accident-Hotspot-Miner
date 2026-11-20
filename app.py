@@ -147,9 +147,9 @@ with tab1:
         with col_f2:
             min_crashes = st.slider(
                 "Minimum Crashes per Hotspot",
-                min_value=250,
+                min_value=0,
                 max_value=int(df_hotspots["total_crashes"].quantile(0.95)),
-                value=500,
+                value=0,
                 step=50,
             )
         with col_f3:
@@ -179,9 +179,10 @@ with tab1:
         if len(filtered) == 0:
             st.warning("No hotspots match those filter thresholds. Lower the sliders to see clusters.")
         else:
-            filtered["radius_m"] = np.clip(np.sqrt(filtered["total_crashes"]) * 28, 350, 3500)
-            filtered["color_r"] = np.clip((filtered["high_sev_pct"] / 50.0) * 255, 80, 255).astype(int)
-            filtered["color_g"] = np.clip((1.0 - filtered["high_sev_pct"] / 60.0) * 190, 30, 190).astype(int)
+            filtered["radius_m"] = np.clip(np.sqrt(filtered["total_crashes"]) * 32, 400, 3800)
+            filtered["color_r"] = np.clip((filtered["high_sev_pct"] / 45.0) * 255, 110, 255).astype(int)
+            filtered["color_g"] = np.clip((1.0 - filtered["high_sev_pct"] / 55.0) * 210, 35, 210).astype(int)
+            filtered["high_sev_round"] = filtered["high_sev_pct"].round(1)
 
             view_lat = float(filtered["centroid_lat"].mean())
             view_lng = float(filtered["centroid_lng"].mean())
@@ -192,7 +193,9 @@ with tab1:
                 data=filtered,
                 get_position="[centroid_lng, centroid_lat]",
                 get_radius="radius_m",
-                get_fill_color="[color_r, color_g, 40, 185]",
+                radius_min_pixels=4,
+                radius_max_pixels=35,
+                get_fill_color="[color_r, color_g, 50, 210]",
                 pickable=True,
                 auto_highlight=True,
             )
@@ -200,7 +203,7 @@ with tab1:
                 "html": (
                     "<b>{State} Hotspot #{db_label}</b><br/>"
                     "Total Crashes: {total_crashes}<br/>"
-                    "High-Sev (3-4): {high_sev_pct}%<br/>"
+                    "High-Sev (3-4): {high_sev_round}%<br/>"
                     "Coords: ({centroid_lat}, {centroid_lng})"
                 ),
                 "style": {"backgroundColor": "#1e1e1e", "color": "white"},
@@ -217,27 +220,40 @@ with tab1:
             )
 
             st.subheader("Top 15 Hotspots by Crash Volume")
-            display_cols = [
-                c
-                for c in [
-                    "State",
-                    "db_label",
-                    "centroid_lat",
-                    "centroid_lng",
-                    "total_crashes",
-                    "high_sev_pct",
-                    "pre22_crashes",
-                    "post22_crashes",
-                ]
-                if c in filtered.columns
-            ]
+            top15 = (
+                filtered.sort_values("total_crashes", ascending=False)
+                .head(15)
+                .reset_index(drop=True)
+            )
+            top15.insert(0, "Rank", range(1, len(top15) + 1))
+
+            rename_map = {
+                "Rank": "Rank",
+                "State": "State",
+                "db_label": "Cluster ID",
+                "centroid_lat": "Latitude",
+                "centroid_lng": "Longitude",
+                "total_crashes": "Total Crashes",
+                "high_sev_pct": "High-Sev (%)",
+                "pre22_crashes": "Pre-2022",
+                "post22_crashes": "2022–23",
+            }
+            keep_cols = [c for c in rename_map if c in top15.columns]
+            top15_display = top15[keep_cols].rename(columns=rename_map)
+
             st.dataframe(
-                filtered.sort_values("total_crashes", ascending=False)[display_cols].head(15),
+                top15_display,
                 use_container_width=True,
                 hide_index=True,
+                column_config={
+                    "Latitude": st.column_config.NumberColumn(format="%.4f"),
+                    "Longitude": st.column_config.NumberColumn(format="%.4f"),
+                    "Total Crashes": st.column_config.NumberColumn(format="%d"),
+                    "High-Sev (%)": st.column_config.NumberColumn(format="%.1f%%"),
+                    "Pre-2022": st.column_config.NumberColumn(format="%d"),
+                    "2022–23": st.column_config.NumberColumn(format="%d"),
+                },
             )
-
-
 # =====================================================================
 # TAB 2: LIVE PRE-CRASH SEVERITY PREDICTOR
 # =====================================================================
